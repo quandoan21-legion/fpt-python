@@ -1,0 +1,159 @@
+import mysql.connector
+from datetime import datetime, date
+
+
+# 1. Connect to database
+def connect_db():
+    return mysql.connector.connect(
+        host="localhost",
+        user="your_username",       # Replace with your MySQL username
+        password="your_password",   # Replace with your MySQL password
+        database="medical_service"
+    )
+
+
+# 2. Add patients
+def add_patients(conn):
+    cursor = conn.cursor()
+    for _ in range(3):
+        print("\nEnter patient details:")
+        full_name = input("Full name: ")
+        dob = input("Date of birth (YYYY-MM-DD): ")
+        gender = input("Gender: ")
+        address = input("Address: ")
+        phone = input("Phone number: ")
+        email = input("Email: ")
+        cursor.execute("""
+            INSERT INTO patients (full_name, date_of_birth, gender, address, phone_number, email)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (full_name, dob, gender, address, phone, email))
+    conn.commit()
+    print("3 patients added.")
+
+
+# 2. Add doctors
+def add_doctors(conn):
+    cursor = conn.cursor()
+    for _ in range(5):
+        print("\nEnter doctor details:")
+        full_name = input("Full name: ")
+        specialization = input("Specialization: ")
+        phone = input("Phone number: ")
+        email = input("Email: ")
+        experience = int(input("Years of experience: "))
+        cursor.execute("""
+            INSERT INTO doctors (full_name, specialization, phone_number, email, years_of_experience)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (full_name, specialization, phone, email, experience))
+    conn.commit()
+    print("5 doctors added.")
+
+
+# 3. Add appointments
+def add_appointments(conn):
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT patient_id, full_name FROM patients")
+    patients = cursor.fetchall()
+    cursor.execute("SELECT doctor_id, full_name FROM doctors")
+    doctors = cursor.fetchall()
+
+    for _ in range(3):
+        print("\nCreating appointment:")
+        print("Patients:")
+        for p in patients:
+            print(f"{p[0]}: {p[1]}")
+        patient_id = int(input("Choose patient ID: "))
+
+        print("Doctors:")
+        for d in doctors:
+            print(f"{d[0]}: {d[1]}")
+        doctor_id = int(input("Choose doctor ID: "))
+
+        reason = input("Reason for appointment: ")
+        appointment_date = input("Appointment date and time (YYYY-MM-DD HH:MM:SS): ")
+        status = input("Status (default 'pending'): ") or "pending"
+
+        cursor.execute("""
+            INSERT INTO appointments (patient_id, doctor_id, appointment_date, reason, status)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (patient_id, doctor_id, appointment_date, reason, status))
+    conn.commit()
+    print("3 appointments added.")
+
+
+# 4. Report for all appointments
+def generate_report(conn):
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT 
+            p.full_name, p.date_of_birth, p.gender, p.address,
+            d.full_name, a.reason, a.appointment_date
+        FROM appointments a
+        JOIN patients p ON a.patient_id = p.patient_id
+        JOIN doctors d ON a.doctor_id = d.doctor_id
+    """)
+    rows = cursor.fetchall()
+
+    print("\n--- Appointment Report ---")
+    print("No | Patient Name | Birthday | Gender | Address | Doctor Name | Reason | Date")
+    for idx, row in enumerate(rows, 1):
+        print(f"{idx} | {row[0]} | {row[1]} | {row[2]} | {row[3]} | {row[4]} | {row[5]} | {row[6]}")
+
+
+# 5. Get today's appointments
+def get_todays_appointments(conn):
+    cursor = conn.cursor()
+    today_str = date.today().strftime("%Y-%m-%d")
+    cursor.execute("""
+        SELECT 
+            p.address, p.full_name, p.date_of_birth, p.gender,
+            d.full_name, a.status, a.reason
+        FROM appointments a
+        JOIN patients p ON a.patient_id = p.patient_id
+        JOIN doctors d ON a.doctor_id = d.doctor_id
+        WHERE DATE(a.appointment_date) = %s
+    """, (today_str,))
+    rows = cursor.fetchall()
+
+    print(f"\n--- Today's Appointments ({today_str}) ---")
+    print("Address | No | Patient Name | Birthday | Gender | Doctor Name | Status")
+    for idx, row in enumerate(rows, 1):
+        print(f"{row[0]} | {idx} | {row[1]} | {row[2]} | {row[3]} | {row[4]} | {row[5]}")
+
+
+# === Main Program ===
+def main():
+    conn = connect_db()
+
+    while True:
+        print("\n--- Medical Service System ---")
+        print("1. Add Patients")
+        print("2. Add Doctors")
+        print("3. Add Appointments")
+        print("4. Generate Appointment Report")
+        print("5. Get Today's Appointments")
+        print("0. Exit")
+        choice = input("Select an option: ")
+
+        if choice == '1':
+            add_patients(conn)
+        elif choice == '2':
+            add_doctors(conn)
+        elif choice == '3':
+            add_appointments(conn)
+        elif choice == '4':
+            generate_report(conn)
+        elif choice == '5':
+            get_todays_appointments(conn)
+        elif choice == '0':
+            conn.close()
+            print("Goodbye!")
+            break
+        else:
+            print("Invalid choice. Try again.")
+
+
+if __name__ == "__main__":
+    main()
+
